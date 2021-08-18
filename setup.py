@@ -1,21 +1,27 @@
+from setuptools import setup, find_packages
+import codecs
 import os
-import sys
-import glob
-import warnings
-from setuptools import setup, Extension
 
+VERSION = '0.0.1'
+DESCRIPTION = 'Package for structure function applications'
 
-file_required = "requirements.txt"
-
-with open(file_required) as file_:
-    required = file_.read().splitlines()
-
+# Setting up
 setup(
-    name='StructureFunction',
-    url='https://github.com/delanoyoder/StructureFunction.git',
-    author='Delano Yoder',
-    author_email='dayoder4@gmail.com',
-    description='package for plotting a different structure function analysis on images',
-    packages=['StructureFunction'],
-    install_requires=required
+    name="StructureFunction",
+    version=VERSION,
+    author="Delano Yoder",
+    author_email="<dayoder4@gmail.com>",
+    description=DESCRIPTION,
+    long_description_content_type="text/markdown",
+    packages=find_packages(),
+    install_requires=[],
+    keywords=['python', 'structure', 'function', 'fits', 'analysis'],
+    classifiers=[
+        "Development Status :: 1 - Planning",
+        "Intended Audience :: Image Processors",
+        "Programming Language :: Python :: 3",
+        "Operating System :: Unix",
+        "Operating System :: MacOS :: MacOS X",
+        "Operating System :: Microsoft :: Windows",
+    ]
 )

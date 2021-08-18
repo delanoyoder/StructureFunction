@@ -25,7 +25,7 @@ class Image:
         self.SCA_structure_function = None
         self.SCA_rolling_structure_function = None
 
-    def get_structure_function(self, switch=1, num_bins=0):
+    def get_structure_function(self, num_bins=0):
         self.integrate_image()
         self.image_attributes()
         self.parallels()
