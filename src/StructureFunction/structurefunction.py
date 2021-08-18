@@ -129,12 +129,14 @@ class SF:
 def plot(image):
 
     if type(image) == Image:
+        if ~hasattr(image, 'image'):
+            image.integrate_image()
         fig = plt.figure(figsize=(8,8))
         ax = fig.add_subplot((111))
-        if np.nanmean(image.data)/np.max(image.data) > 0.01:
-            im = ax.imshow(image.data)
+        if np.nanmean(image.image)/np.max(image.image) > 0.01:
+            im = ax.imshow(image.image)
         else:
-            im = ax.imshow(image.data, norm=pltc.LogNorm())
+            im = ax.imshow(image.image, norm=pltc.LogNorm())
         if 'OBJECT' in image.header:
             ax.set_title(image.header['OBJECT'])
         if 'TARGNAME' in image.header:
