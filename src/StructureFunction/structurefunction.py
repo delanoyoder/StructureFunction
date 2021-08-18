@@ -125,3 +125,16 @@ class SF:
             self.binned_values.append(np.nansum(self.values[in_bin] / self.errors[in_bin]**2) 
                                     / np.nansum(1 / self.errors[in_bin]**2))
             self.binned_errors.append((1 / np.nansum(1 / np.errors[in_bin]**2))**0.5)
+
+class RSF:
+
+    def __init__(self):
+        pass
+
+class SCASF:
+    def __init__(self):
+        pass
+
+class SCARSF:
+    def __init__(self):
+        pass
