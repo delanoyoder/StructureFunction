@@ -130,3 +130,9 @@ dmypy.json
 
 # Old files
 old/
+
+# OS files
+.DS_Store
+
+# VS files
+.vscode
