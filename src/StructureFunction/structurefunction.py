@@ -35,6 +35,7 @@ class Image:
             self.structure_function = SF(self.SF_dict)
         else:
             self.structure_function = SF(self.SF_dict).bin(num_bins)
+        print("test")
 
     def get_rolling_structure_function(self):
         pass
