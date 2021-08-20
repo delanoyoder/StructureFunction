@@ -10,10 +10,7 @@ class Plot:
 
         fig = plt.figure(figsize=(8,8))
         ax = fig.add_subplot((111))
-        if np.nanmean(self.fits.image)/np.max(self.fits.image) > 0.01:
-            im = ax.imshow(self.fits.image)
-        else:
-            im = ax.imshow(self.fits.image, norm=pltc.LogNorm())
+        im = ax.imshow(self.fits.image)
         if 'OBJECT' in self.fits.header:
             ax.set_title(self.fits.header['OBJECT'])
         if 'TARGNAME' in self.fits.header:

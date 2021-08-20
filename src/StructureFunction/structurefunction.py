@@ -33,8 +33,8 @@ class Fits:
         non_nan = np.where(~np.isnan(image))
         self.image = image / np.amax(image[non_nan])
 
-    def get_structure_function(self, num_bins=1):
-        self.structure_function = SF(self.data, num_bins)
+    def get_structure_function(self, num_bins=1, max_distance=None):
+        self.structure_function = SF(self.data, num_bins, max_distance)
 
     def get_rolling_structure_function(self):
         pass
@@ -48,17 +48,17 @@ class Fits:
 class Image:
 
     def __init__(self, file_name):
-        self.image = data
+        self.image = file_name
 
 class SF:
 
-    def __init__(self, data, num_bins):
+    def __init__(self, data, num_bins, max_distance):
         self.data = data
         self.get_image()
         self.get_attributes()
         self.get_sf()
         if num_bins > 1:
-            self.bin(num_bins)
+            self.bin(num_bins, max_distance)
 
     def get_image(self):
         if self.data.ndim == 3:
@@ -82,41 +82,37 @@ class SF:
     def parallels(self):
         w = self.width
         l = self.length
-        md = self.max_distance
+        md = max(self.length, self.width)
 
         for d in range(1, int(md)):
-
-            if d <= md:
                 
-                right = np.nanmean((self.image[0:w-d,0:l] - self.image[d:w,0:l])**2)
-                up = np.nanmean((self.image[0:w,0:l-d] - self.image[0:w,d:l])**2)
+            right = np.nanmean((self.image[0:w-d,0:l] - self.image[d:w,0:l])**2)
+            up = np.nanmean((self.image[0:w,0:l-d] - self.image[0:w,d:l])**2)
 
-                if (d in self.dict):
-                    self.dict[d].append(right)
-                    self.dict[d].append(up)
-                else:
-                    self.dict[d] = [right, up]
+            if (d in self.dict):
+                self.dict[d].append(right)
+                self.dict[d].append(up)
+            else:
+                self.dict[d] = [right, up]
     
     def diagonals(self):
         w = self.width
         l = self.length
-        md = self.max_distance
+        md = max(self.length, self.width)
 
         for x in range(1, int(md)):
             for y in range(1, int(md)):
                 
                 d = (x**2+y**2)**0.5
-                
-                if d <= md:
                     
-                    up_right = np.nanmean((self.image[0:w-x,0:l-y] - self.image[x:w,y:l])**2)
-                    up_left = np.nanmean((self.image[x:w,0:l-y] - self.image[0:w-x,y:l])**2)
-                
-                    if (d in self.dict):
-                        self.dict[d].append(up_right)
-                        self.dict[d].append(up_left)
-                    else:
-                        self.dict[d] = [up_right, up_left]
+                up_right = np.nanmean((self.image[0:w-x,0:l-y] - self.image[x:w,y:l])**2)
+                up_left = np.nanmean((self.image[x:w,0:l-y] - self.image[0:w-x,y:l])**2)
+            
+                if (d in self.dict):
+                    self.dict[d].append(up_right)
+                    self.dict[d].append(up_left)
+                else:
+                    self.dict[d] = [up_right, up_left]
 
     def sort(self):
         distances = []
@@ -131,22 +127,24 @@ class SF:
         self.distances = np.array(distances)
         self.values = np.array(values)
         self.errors = np.array(errors)
-            
 
-
-    def bin(self, num_bins):
+    def bin(self, num_bins, max_distance):
         self.binned_distances = []
         self.binned_values = []
         self.binned_errors = []
         
-        bin_spacing = np.logspace(0, max(self.distances)+1, num=num_bins+1)
+        if max_distance == None:
+            max_distance = max(self.distances)
+
+        bin_spacing = np.logspace(0, np.log10(max_distance), num=num_bins+1)
+        bin_spacing[-1] += 1
         for i in range(num_bins):
-            in_bin = (self.distances >= bin_spacing[i]) * (self.distances < bin_spacing[i])
-            self.binned_distances.append(np.nanmean(self.distances[in_bin]))
-            print(np.nansum(self.values[in_bin] / self.errors[in_bin]**2))
-            self.binned_values.append(np.nansum(self.values[in_bin] / self.errors[in_bin]**2) 
-                                    / np.nansum(1 / self.errors[in_bin]**2))
-            self.binned_errors.append((1 / np.nansum(1 / self.errors[in_bin]**2))**0.5)
+            in_bin = (self.distances >= bin_spacing[i]) * (self.distances < bin_spacing[i+1])
+            if True in in_bin:
+                self.binned_distances.append(np.nanmean(self.distances[in_bin]))
+                self.binned_values.append(np.nansum(self.values[in_bin] / self.errors[in_bin]**2) 
+                                        / np.nansum(1 / self.errors[in_bin]**2))
+                self.binned_errors.append((1 / np.nansum(1 / self.errors[in_bin]**2))**0.5)
 
 class RSF:
 
