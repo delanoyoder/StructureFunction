@@ -9,6 +9,9 @@ from astropy.io import fits
 import matplotlib.pyplot as plt
 import matplotlib.colors as pltc
 
+# This Fits class opens and stores the contents of a .fits file. This class has 
+# methods that call other objects to perform structure function analysis on.
+# This includes SF, RSF, SCASF, and SCARSF. 
 class Fits:
 
     def __init__(self, file_name):
@@ -34,7 +37,8 @@ class Fits:
         self.image = image / np.amax(image[non_nan])
 
     def get_structure_function(self, num_bins=1, max_distance=None):
-        self.structure_function = SF(self.data, num_bins, max_distance)
+        self.get_image()
+        self.structure_function = SF(self.image, num_bins, max_distance)
 
     def get_rolling_structure_function(self):
         pass
@@ -45,63 +49,60 @@ class Fits:
     def get_SCA_rolling_structure_function(self):
         pass
 
+# This Image class opens and stores the contents of a .fits file. This class has 
+# methods that call other objects to perform structure function analysis on.
+# This includes SF, RSF, SCASF, and SCARSF. 
 class Image:
 
     def __init__(self, file_name):
         self.image = file_name
 
+# This class takes in either a Fits or Image object and uses its data to perform
+# and return a structure function analysis on the whole image.
 class SF:
 
-    def __init__(self, data, num_bins, max_distance):
-        self.data = data
-        self.get_image()
-        self.get_attributes()
+    def __init__(self, image, num_bins, max_distance):
+        self.image = image
         self.get_sf()
         if num_bins > 1:
             self.bin(num_bins, max_distance)
 
-    def get_image(self):
-        if self.data.ndim == 3:
-            image = np.nansum(self.data, 0)
-        else:
-            image = self.data
-        
-        non_nan = np.where(~np.isnan(image))
-        self.image = image / np.amax(image[non_nan])
-
-    def get_attributes(self):
-        self.width, self.length = self.image.shape
-        self.max_distance = min(self.width / 2.0, self.length / 2.0)
-
     def get_sf(self):
         self.dict = {}
-        self.parallels()
+        self.right()
+        self.up()
         self.diagonals()
         self.sort()
 
-    def parallels(self):
-        w = self.width
-        l = self.length
-        md = max(self.length, self.width)
+    def right(self):
+        w, l = self.image.shape
 
-        for d in range(1, int(md)):
+        for x in range(1, w):
                 
-            right = np.nanmean((self.image[0:w-d,0:l] - self.image[d:w,0:l])**2)
-            up = np.nanmean((self.image[0:w,0:l-d] - self.image[0:w,d:l])**2)
+            right = np.nanmean((self.image[0:w-x,0:l] - self.image[x:w,0:l])**2)
 
-            if (d in self.dict):
-                self.dict[d].append(right)
-                self.dict[d].append(up)
+            if (x in self.dict):
+                self.dict[x].append(right)
             else:
-                self.dict[d] = [right, up]
+                self.dict[x] = [right]
+
+    def up(self):
+        w, l = self.image.shape
+
+        for y in range(1, l):
+                
+            up = np.nanmean((self.image[0:w,0:l-y] - self.image[0:w,y:l])**2)
+
+            if (y in self.dict):
+                self.dict[y].append(up)
+            else:
+                self.dict[y] = [up]
     
     def diagonals(self):
-        w = self.width
-        l = self.length
-        md = max(self.length, self.width)
+        w, l = self.image.shape
 
-        for x in range(1, int(md)):
-            for y in range(1, int(md)):
+        for x in range(1, w):
+            for y in range(1, l):
                 
                 d = (x**2+y**2)**0.5
                     

@@ -11,6 +11,10 @@ def test2(fits):
     Plot(fits).plot_sf()
 
 def test3(fits):
+    fits.get_structure_function(50)
+    Plot(fits).plot_sf()
+
+def test4(fits):
     fits.get_structure_function(30, 6)
     Plot(fits).plot_sf()
 
@@ -20,3 +24,4 @@ fits = Fits(path)
 test1(fits)
 test2(fits)
 test3(fits)
+test4(fits)
