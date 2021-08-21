@@ -228,16 +228,63 @@ class RSF:
 
     # Rolling structure function procedure.
     def get_sf(self):
-        w, l = self.image.shape
-
-        # Number of kernels along the x-axis and y-axis of the image.
-        num_x_kernels = int(((w - (self.kernel*2+1)) / self.step) + 1)
-        num_y_kernels = int(((l - (self.kernel*2+1)) / self.step) + 1)
+        self.sample()
+        self.roll_kernel()
         
         self.sort()
 
     def sample(self):
         pass
+
+    def roll_kernel(self):
+
+        w, l = self.image.shape
+
+        # Number of kernels along the x-axis and y-axis of the image.
+        num_x_kernels = int(((w - (self.kernel*2+1)) / self.step) + 1)
+        num_y_kernels = int(((l - (self.kernel*2+1)) / self.step) + 1)
+
+                # Stepping through each kernel
+        for x in range(num_x_kernels):
+            for y in range(num_y_kernels):
+                
+                # Variables for the position of each edge of the kernel
+                top = y * self.step
+                left = x * self.step
+                bottom = (y * self.step) + (self.kernel*2+1)
+                right = (x * self.step) + (self.kernel*2+1)
+                
+                # Checking if kernel is within the image
+                if (right <= w and bottom <= l):
+                    kernel = image[left:right, top:bottom].copy()
+                    
+                    # Calculating maximum limit
+                    max_r = (self.kernel*2+1)/2.0
+                    
+                    # Making the kernal circlular   
+                    r_2 = (np.arange(0, (self.kernel*2+1), dtype=float)-max_r)**2
+                    cdist = np.empty(((self.kernel*2+1), (self.kernel*2+1)))
+                    for i in range((self.kernel*2+1)):
+                        cdist[0:, i] = (r_2+r_2[i])**0.5
+                    kernel[cdist > max_r] = np.nan
+                    
+                    # Performing structure function on the kernel
+                    x_SF, y_SF, e_SF = SF(kernel)
+                    
+                    # Allocating memory for the results
+                    if (x+y == 0):
+                        X = np.empty((len(y_SF)))*np.nan
+                        Y = np.empty((num_x_kernels, num_y_kernels, len(y_SF)))*np.nan
+                        E = np.empty((num_x_kernels, num_y_kernels, len(e_SF)))*np.nan
+                    
+                    # Storing the results
+                    X = x_SF
+                    Y[x, y, :] = y_SF
+                    E[x, y, :] = e_SF
+
+    def get_kernel(self, x, y, circular=False):
+        pass
+
 
 
 # To do
