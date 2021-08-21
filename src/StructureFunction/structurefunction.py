@@ -3,7 +3,6 @@
 """
 
 import time
-import math
 import numpy as np
 from astropy.io import fits
 import matplotlib.pyplot as plt
@@ -108,10 +107,15 @@ class SF:
     def right(self):
         w, l = self.image.shape
 
+        # Stepping through each horizontal pixel separation.
         for x in range(1, w):
                 
+            # Calculating the average of the squared difference of all pixel 
+            # separations at this distance.
             right = np.nanmean((self.image[0:w-x,0:l] - self.image[x:w,0:l])**2)
 
+            # Appending the average to the dictionary using the distance of 
+            # the pixel separation as the key.
             if (x in self.dict):
                 self.dict[x].append(right)
             else:
@@ -121,10 +125,15 @@ class SF:
     def up(self):
         w, l = self.image.shape
 
+        # Stepping through each vertical pixel separation.
         for y in range(1, l):
                 
+            # Calculating the average of the squared difference of all pixel 
+            # separations at this distance.
             up = np.nanmean((self.image[0:w,0:l-y] - self.image[0:w,y:l])**2)
 
+            # Appending the average to the dictionary using the distance of 
+            # the pixel separation as the key.
             if (y in self.dict):
                 self.dict[y].append(up)
             else:
@@ -134,14 +143,20 @@ class SF:
     def diagonals(self):
         w, l = self.image.shape
 
+        # Stepping through each diagonal pixel separation.
         for x in range(1, w):
             for y in range(1, l):
                 
+                # Calculating the distance of the pixel separation.
                 d = (x**2+y**2)**0.5
-                    
+                
+                # Calculating the average of the squared difference of all pixel 
+                # separations at this distance.
                 up_right = np.nanmean((self.image[0:w-x,0:l-y] - self.image[x:w,y:l])**2)
                 up_left = np.nanmean((self.image[x:w,0:l-y] - self.image[0:w-x,y:l])**2)
             
+                # Appending the average to the dictionary using the distance of 
+                # the pixel separation as the key.
                 if (d in self.dict):
                     self.dict[d].append(up_right)
                     self.dict[d].append(up_left)
@@ -150,42 +165,80 @@ class SF:
 
     # Sorting all structure function data by distance.
     def sort(self):
-        distances = []
-        values = []
-        errors = []
+
+        # Getting number of discrete distances.
+        n = len(self.dict)
+
+        # Allocating memory for structure function data arrays.
+        self.distances = np.empty((0,n), float)
+        self.values = np.empty((0,n), float)
+        self.errors = np.empty((0,n), float)
         
+        # Storing structure function data arrays sorted by distance.
         for d in sorted(self.dict.keys()):
-            distances.append(d)
-            values.append(np.nanmean(self.dict[d]))
-            errors.append(np.nanstd(self.dict[d]))
+            self.distances = np.append(self.distances, np.array(d))
+            self.values = np.append(self.values, np.array(np.nanmean(self.dict[d])))
+            self.errors = np.append(self.errors, np.array(np.nanstd(self.dict[d])))
 
-        self.distances = np.array(distances)
-        self.values = np.array(values)
-        self.errors = np.array(errors)
-
+    # Binning structure function data logarithmically based on number of bins, 
+    # given by num_bins argument, and the maximum distance, given by max_distance.
+    # A maximum distance might be needed since the structure function becomes 
+    # non-linear at higher pixel separations.
     def bin(self, num_bins, max_distance):
+
+        # Empty lists for binned structure function data.
         self.binned_distances = []
         self.binned_values = []
         self.binned_errors = []
         
+        # If a max_distance argument isn't given use all distances.
         if max_distance == None:
             max_distance = max(self.distances)
 
+        # Calculate the logarithmic spacing of the distances.
         bin_spacing = np.logspace(0, np.log10(max_distance), num=num_bins+1)
-        bin_spacing[-1] += 1
+        bin_spacing[-1] += 1 # Allows for the last distance to be included in the last bin.
+
+        # Step through each bin and store the structure function data in that bin.
         for i in range(num_bins):
+
+            # Getting truth table for the indicies of the structure function data in the bin.
             in_bin = (self.distances >= bin_spacing[i]) * (self.distances < bin_spacing[i+1])
+
+            # Checking that there is at least one data point in the bin and storing structure
+            # function data if so.
             if True in in_bin:
                 self.binned_distances.append(np.nanmean(self.distances[in_bin]))
+
+                # Statistically weighting each value in the bin based on that distance's standard deviation.
                 self.binned_values.append(np.nansum(self.values[in_bin] / self.errors[in_bin]**2) 
                                         / np.nansum(1 / self.errors[in_bin]**2))
+                    
+                # Statistically binning the standard deviation data.
                 self.binned_errors.append((1 / np.nansum(1 / self.errors[in_bin]**2))**0.5)
 
 # To do
 class RSF:
 
-    def __init__(self):
+    def __init__(self, image, kernel_radius, step_size, num_bins, max_distance):
+        self.image = image
+        self.kernel = kernel_radius
+        self.step = step_size
+        self.get_rsf()
+
+    # Rolling structure function procedure.
+    def get_sf(self):
+        w, l = self.image.shape
+
+        # Number of kernels along the x-axis and y-axis of the image.
+        num_x_kernels = int(((w - (self.kernel*2+1)) / self.step) + 1)
+        num_y_kernels = int(((l - (self.kernel*2+1)) / self.step) + 1)
+        
+        self.sort()
+
+    def sample(self):
         pass
+
 
 # To do
 class SCASF:
