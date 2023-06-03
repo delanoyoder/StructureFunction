@@ -2,97 +2,27 @@
 @author: Delano Yoder
 """
 
-import time
 import numpy as np
-from astropy.io import fits
-import matplotlib.pyplot as plt
-import matplotlib.colors as pltc
-
-# This Fits class opens and stores the contents of a .fits file. This class has
-# methods that call other objects to perform structure function analysis on.
-# This includes SF, RSF, SCASF, and SCARSF.
-class Fits:
-    def __init__(self, file_name):
-        self.file_name = file_name
-        self.get_header()
-        self.get_data()
-
-    # Stores FITS header.
-    def get_header(self):
-        with fits.open(self.file_name) as ff:
-            self.header = ff[0].header
-
-    # Stores FITS data.
-    def get_data(self):
-        with fits.open(self.file_name) as ff:
-            self.data = ff[0].data
-
-    # Stores the normalized integrated image of the FITS data.
-    def get_image(self):
-
-        # Integrate image if there are velocity channels.
-        if self.data.ndim == 3:
-            image = np.nansum(self.data, 0)
-        else:
-            image = self.data
-
-        # Normalize the image.
-        non_nan = np.where(~np.isnan(image))
-        self.image = image / np.amax(image[non_nan])
-
-    # Performs the structure function of the whole image. Keyword argument
-    # num_bins will bin the structure function distances logarithmically into
-    # the specified amount of bins. Keyword argument max_distance will cut of
-    # structure function distances larger than the given distance.
-    def get_structure_function(self, num_bins=1, max_distance=None):
-        self.get_image()
-        self.structure_function = SF(self.image, num_bins, max_distance)
-
-    # To do
-    def get_rolling_structure_function(self):
-        pass
-
-    # To do
-    def get_SCA_structure_function(self):
-        pass
-
-    # To do
-    def get_SCA_rolling_structure_function(self):
-        pass
-
-
-# This Image class opens and stores the contents of a .fits file. This class has
-# methods that call other objects to perform structure function analysis on.
-# This includes SF, RSF, SCASF, and SCARSF.
-class Image:
-    def __init__(self, file_name):
-        self.image = file_name
-        self.normalize_image()
-
-    # Normalizes the image.
-    def normalize_image(self):
-        non_nan = np.where(~np.isnan(self.image))
-        self.image = self.image / np.amax(self.image[non_nan])
-
-    # Performs the structure function of the whole image. Keyword argument
-    # num_bins will bin the structure function distances logarithmically into
-    # the specified amount of bins. Keyword argument max_distance will cut of
-    # structure function distances larger than the given distance.
-    def get_structure_function(self, num_bins=1, max_distance=None):
-        self.structure_function = SF(self.image, num_bins, max_distance)
+from skimage.util.shape import view_as_windows
 
 
 # This class takes in either a Fits or Image object and uses its data to perform
 # and return a structure function analysis on the whole image.
 class SF:
-    def __init__(self, image, num_bins, max_distance):
-        self.image = image
+    def __init__(self, image, num_bins, max_distance=None):
+        self.image = self.normalize_image(image)
         self.get_sf()
 
         # Bin the structure function distances, values, and errors if the user
         # passes through a valid argument.
-        if num_bins > 1:
+        if num_bins is not None:
             self.bin(num_bins, max_distance)
+
+        self.get_slope()
+
+    @staticmethod
+    def normalize_image(image):
+        return image / np.nanmax(image)
 
     # Structure function procedure.
     def get_sf(self):
@@ -102,13 +32,22 @@ class SF:
         self.diagonals()
         self.sort()
 
+    def get_slope(self):
+        # Convert the data to log scale
+        log_binned_distances = np.log10(self.binned_distances)
+        log_binned_values = np.log10(self.binned_values)
+
+        # Use polyfit with degree 1 to perform a linear regression
+        self.slope, self.intercept = np.polyfit(
+            log_binned_distances, log_binned_values, 1
+        )
+
     # Calculating the squared differences on horizontal pixel separations.
     def right(self):
         w, l = self.image.shape
 
         # Stepping through each horizontal pixel separation.
         for x in range(1, w):
-
             # Calculating the average of the squared difference of all pixel
             # separations at this distance.
             right = np.nanmean((self.image[0 : w - x, 0:l] - self.image[x:w, 0:l]) ** 2)
@@ -126,7 +65,6 @@ class SF:
 
         # Stepping through each vertical pixel separation.
         for y in range(1, l):
-
             # Calculating the average of the squared difference of all pixel
             # separations at this distance.
             up = np.nanmean((self.image[0:w, 0 : l - y] - self.image[0:w, y:l]) ** 2)
@@ -145,9 +83,8 @@ class SF:
         # Stepping through each diagonal pixel separation.
         for x in range(1, w):
             for y in range(1, l):
-
                 # Calculating the distance of the pixel separation.
-                d = (x ** 2 + y ** 2) ** 0.5
+                d = (x**2 + y**2) ** 0.5
 
                 # Calculating the average of the squared difference of all pixel
                 # separations at this distance.
@@ -168,7 +105,6 @@ class SF:
 
     # Sorting all structure function data by distance.
     def sort(self):
-
         # Getting number of discrete distances.
         n = len(self.dict)
 
@@ -188,7 +124,6 @@ class SF:
     # A maximum distance might be needed since the structure function becomes
     # non-linear at higher pixel separations.
     def bin(self, num_bins, max_distance):
-
         # Empty lists for binned structure function data.
         self.binned_distances = []
         self.binned_values = []
@@ -196,17 +131,15 @@ class SF:
 
         # If a max_distance argument isn't given use all distances.
         if max_distance == None:
-            max_distance = max(self.distances)
+            max_distance = np.power(10, np.log10(max(self.distances)) / 2)
 
         # Calculate the logarithmic spacing of the distances.
         bin_spacing = np.logspace(0, np.log10(max_distance), num=num_bins + 1)
-        bin_spacing[
-            -1
-        ] += 1  # Allows for the last distance to be included in the last bin.
+        # Allows for the last distance to be included in the last bin.
+        bin_spacing[-1] += 1
 
         # Step through each bin and store the structure function data in that bin.
         for i in range(num_bins):
-
             # Getting truth table for the indicies of the structure function data in the bin.
             in_bin = (self.distances >= bin_spacing[i]) * (
                 self.distances < bin_spacing[i + 1]
@@ -231,76 +164,47 @@ class SF:
 
 # To do
 class RSF:
-    def __init__(self, image, kernel_radius, step_size, num_bins, max_distance):
-        self.image = image
-        self.kernel = kernel_radius
-        self.step = step_size
-        self.get_rsf()
+    def __init__(self, image, kernel_size, step_size, num_bins, max_distance=None):
+        self.get_rsf(image, kernel_size, step_size, num_bins)
 
-    # Rolling structure function procedure.
-    def get_rsf(self):
-        self.sample()
-        self.roll_kernel()
+    def get_rsf(self, image, k, s, num_bins):
+        # Diameter will be used for window shape
+        kernel_diameter = 2 * k + 1
 
-        self.sort()
+        # Create overlapping windows on the image
+        kernels = view_as_windows(image, (kernel_diameter, kernel_diameter), step=s)
 
-    def sample(self):
-        pass
+        # Initialize result array
+        self.results = np.zeros(kernels.shape[:2])
 
-    def roll_kernel(self):
+        # iterate over each window
+        for i in range(kernels.shape[0]):
+            for j in range(kernels.shape[1]):
+                # Extract window
+                kernel = kernels[i, j, :, :]
 
-        w, l = self.image.shape
+                # Check if window is a circular kernel
+                y, x = np.ogrid[-k : k + 1, -k : k + 1]
+                mask = x**2 + y**2 <= k**2
 
-        # Number of kernels along the x-axis and y-axis of the image.
-        num_x_kernels = int(((w - (self.kernel * 2 + 1)) / self.step) + 1)
-        num_y_kernels = int(((l - (self.kernel * 2 + 1)) / self.step) + 1)
+                # Convert mask's False values to NaN
+                mask = mask.astype(float)
+                mask[mask == 0] = np.nan
 
-        # Stepping through each kernel
-        for x in range(num_x_kernels):
-            for y in range(num_y_kernels):
+                # Apply circular mask to the window
+                kernel = kernel * mask
 
-                self.get_kernel()
+                # Apply get_sf function to kernel and store result
+                self.results[i, j] = SF(kernel, num_bins).slope
+                print(f"({i}, {j}): {self.results[i, j]}")
 
-                # Checking if kernel is within the image
-                if right <= w and bottom <= l:
+        import matplotlib.pyplot as plt
 
-                    # Performing structure function on the kernel
-                    x_SF, y_SF, e_SF = SF(kernel)
-
-                    # Allocating memory for the results
-                    if x + y == 0:
-                        X = np.empty((len(y_SF))) * np.nan
-                        Y = np.empty((num_x_kernels, num_y_kernels, len(y_SF))) * np.nan
-                        E = np.empty((num_x_kernels, num_y_kernels, len(e_SF))) * np.nan
-
-                    # Storing the results
-                    X = x_SF
-                    Y[x, y, :] = y_SF
-                    E[x, y, :] = e_SF
-
-    def get_kernel(self, x, y):
-
-        top = y * self.step
-        left = x * self.step
-        bottom = (y * self.step) + (self.kernel * 2 + 1)
-        right = (x * self.step) + (self.kernel * 2 + 1)
-
-        kernel = self.image[left:right, top:bottom].copy()
-
-        return kernel
-
-    def circular(self):
-        kernel = self.image[left:right, top:bottom].copy()
-
-        # Calculating maximum limit
-        max_r = (self.kernel * 2 + 1) / 2.0
-
-        # Making the kernal circlular
-        r_2 = (np.arange(0, (self.kernel * 2 + 1), dtype=float) - max_r) ** 2
-        cdist = np.empty(((self.kernel * 2 + 1), (self.kernel * 2 + 1)))
-        for i in range((self.kernel * 2 + 1)):
-            cdist[0:, i] = (r_2 + r_2[i]) ** 0.5
-        kernel[cdist > max_r] = np.nan
+        plt.imshow(image)
+        plt.show()
+        plt.imshow(self.results)
+        plt.show()
+        breakpoint()
 
 
 # To do
