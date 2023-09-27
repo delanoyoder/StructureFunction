@@ -40,12 +40,16 @@ Ensure that the required software for running the SF algorithms is installed on 
 
 ```bash
 # Clone this repository
-$ git clone https://github.com/user/SF-Repository
+$ git clone https://github.com/delanoyoder/StructureFunction
 
 # Go into the repository
-$ cd SF-Repository
+$ cd StructureFunction
 
-# Install dependencies as listed in the documentation
+# Create a venv
+$ python3 -m venv venv
+
+# Install dependencies
+$ pip install -r requirements.txt
 ```
 
 ## Usage
@@ -70,4 +74,4 @@ This project is under the MIT License. Refer to the [LICENSE.md](LICENSE.md) fil
 
 ## Contact
 
-For inquiries or concerns, please open an issue or contact the maintainers directly at email@example.com. Explore the SF Repository for insightful turbulent property analysis in two-dimensional images!
+For inquiries or concerns, please open an issue or contact the maintainers directly at dayoder4@gmail.com. Explore the SF Repository for insightful turbulent property analysis in two-dimensional images!
